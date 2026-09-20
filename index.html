@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Focus Sprint</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --card: #ffffff;
+    --ink: #1f2421;
+    --muted: #6b7570;
+    --line: #e4e0d6;
+    --track: #ece8dd;
+    --focus: #d9480f;
+    --break: #2b8a6e;
+    --on-accent: #ffffff;
+    --ring: var(--focus);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141715;
+      --card: #1d211f;
+      --ink: #ecebe6;
+      --muted: #98a19c;
+      --line: #2b312e;
+      --track: #2a302d;
+      --focus: #ff7a45;
+      --break: #4cc9a0;
+      --on-accent: #16120f;
+    }
+  }
+  body[data-mode="break"] { --ring: var(--break); }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 64px;
+  }
+  main { max-width: 480px; margin: 0 auto; display: grid; gap: 20px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  #stats { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 20px;
+  }
+  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; }
+
+  .timer-card { display: grid; gap: 16px; justify-items: center; text-align: center; }
+
+  .seg { display: inline-flex; background: var(--track); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 14px;
+    padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .seg button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .ring-wrap { position: relative; width: min(260px, 70vw); aspect-ratio: 1; }
+  .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring-wrap circle { fill: none; stroke-width: 10; }
+  .ring-track { stroke: var(--track); }
+  .ring-bar { stroke: var(--ring); stroke-linecap: round; transition: stroke .3s; }
+  .ring-label { position: absolute; inset: 0; display: grid; place-content: center; gap: 2px; }
+  #time { font-size: clamp(44px, 14vw, 60px); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1; }
+  #modeLabel { color: var(--muted); font-size: 14px; }
+
+  #task {
+    width: 100%; font: inherit; text-align: center; color: var(--ink);
+    background: transparent; border: 0; border-bottom: 2px solid var(--line);
+    padding: 8px 4px; border-radius: 0;
+  }
+  #task:focus { outline: none; border-bottom-color: var(--ring); }
+  #task::placeholder { color: var(--muted); }
+
+  .controls { display: flex; gap: 10px; width: 100%; }
+  button.btn {
+    font: inherit; font-weight: 600; border-radius: 14px; padding: 12px 18px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  button.btn:hover { border-color: var(--muted); }
+  button.btn.primary { flex: 1; background: var(--ring); border-color: var(--ring); color: var(--on-accent); font-size: 17px; }
+  button.btn.primary:hover { filter: brightness(1.06); }
+  :focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+  #status { min-height: 1.5em; color: var(--muted); font-size: 14px; margin: 0; }
+
+  .add { display: flex; gap: 8px; margin-bottom: 8px; }
+  .add input {
+    flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  }
+  .add input:focus { outline: none; border-color: var(--ring); }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  li.item:first-child { border-top: 0; }
+  li.item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--focus); flex: none; }
+  li.item .text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  li.item.done .text { text-decoration: line-through; color: var(--muted); }
+  li.item.current .text { font-weight: 600; }
+  .mini {
+    font: inherit; font-size: 13px; color: var(--muted); background: transparent;
+    border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; cursor: pointer;
+  }
+  .mini:hover { color: var(--ink); border-color: var(--muted); }
+  .empty { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+
+  .log-head { display: flex; justify-content: space-between; align-items: center; }
+  .log-head h2 { margin: 0; }
+  li.entry { display: grid; grid-template-columns: 72px 1fr auto; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  li.entry:first-child { border-top: 0; }
+  li.entry .when, li.entry .mins { color: var(--muted); font-variant-numeric: tabular-nums; }
+  li.entry .what { overflow-wrap: anywhere; }
+  #logList { margin-top: 12px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; }
+  kbd { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; background: var(--card); }
+
+  @media (prefers-reduced-motion: reduce) { .ring-bar { transition: none; } }
+</style>
+</head>
+<body data-mode="focus">
+<main>
+  <header>
+    <h1>Focus Sprint</h1>
+    <span id="stats" aria-live="polite"></span>
+  </header>
+
+  <section class="card timer-card" aria-label="Timer">
+    <div class="seg" role="group" aria-label="Focus length">
+      <button type="button" data-min="15" aria-pressed="false">15 min</button>
+      <button type="button" data-min="25" aria-pressed="true">25 min</button>
+      <button type="button" data-min="50" aria-pressed="false">50 min</button>
+    </div>
+
+    <div class="ring-wrap">
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="ring-track" cx="100" cy="100" r="90"></circle>
+        <circle class="ring-bar" id="bar" cx="100" cy="100" r="90"></circle>
+      </svg>
+      <div class="ring-label">
+        <div id="time" role="timer" aria-live="off">25:00</div>
+        <div id="modeLabel">Focus</div>
+      </div>
+    </div>
+
+    <input id="task" type="text" maxlength="80" placeholder="What's the one thing?" aria-label="The one thing you're working on" autocomplete="off">
+
+    <div class="controls">
+      <button class="btn primary" id="startBtn" type="button">Start</button>
+      <button class="btn" id="resetBtn" type="button">Reset</button>
+      <button class="btn" id="skipBtn" type="button" title="Switch between focus and break">Skip</button>
+    </div>
+    <p id="status" role="status"></p>
+  </section>
+
+  <section class="card" aria-label="Tasks">
+    <h2>Up next</h2>
+    <form class="add" id="addForm">
+      <input id="newTask" type="text" maxlength="80" placeholder="Add a task" aria-label="New task" autocomplete="off">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <ul id="taskList"></ul>
+    <p class="empty" id="taskEmpty">Nothing queued. Add a few things, then pick one to focus on.</p>
+  </section>
+
+  <section class="card" aria-label="Sprint log">
+    <div class="log-head">
+      <h2>Today's sprints</h2>
+      <button class="mini" id="clearLog" type="button">Clear log</button>
+    </div>
+    <ul id="logList"></ul>
+    <p class="empty" id="logEmpty">No sprints yet. Finish one and it lands here.</p>
+  </section>
+
+  <footer><kbd>Space</kbd> start / pause</footer>
+</main>
+
+<script>
+const KEY = 'focusSprint.v1';
+const BREAK_MIN = 5;
+const CIRC = 2 * Math.PI * 90;
+const $ = (s) => document.querySelector(s);
+
+let state = load();
+let mode = 'focus';
+let remaining = focusMs();
+let endAt = null;
+let timerId = null;
+let audioCtx = null;
+let clearArmed = null;
+
+function load() {
+  const fresh = { focusMin: 25, task: '', tasks: [], log: [] };
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (saved && typeof saved === 'object') return { ...fresh, ...saved };
+  } catch (e) {}
+  return fresh;
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function focusMs() { return state.focusMin * 60000; }
+function totalMs() { return mode === 'focus' ? focusMs() : BREAK_MIN * 60000; }
+function running() { return endAt !== null; }
+
+function fmt(ms) {
+  const s = Math.ceil(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function render() {
+  const t = fmt(remaining);
+  $('#time').textContent = t;
+  $('#bar').style.strokeDashoffset = CIRC * (1 - remaining / totalMs());
+  $('#modeLabel').textContent = mode === 'focus' ? 'Focus' : 'Break';
+  $('#startBtn').textContent = running() ? 'Pause' : (remaining < totalMs() ? 'Resume' : 'Start');
+  document.body.dataset.mode = mode;
+  document.title = running() ? `${t} · Focus Sprint` : 'Focus Sprint';
+  document.querySelectorAll('.seg button').forEach((b) => {
+    b.setAttribute('aria-pressed', String(Number(b.dataset.min) === state.focusMin));
+    b.disabled = running() && mode === 'focus';
+  });
+}
+
+function setMode(m) {
+  pause();
+  mode = m;
+  remaining = totalMs();
+  render();
+}
+
+function tick() {
+  remaining = Math.max(0, endAt - Date.now());
+  if (remaining === 0) complete();
+  else render();
+}
+
+function start() {
+  ensureAudio();
+  if (remaining <= 0) remaining = totalMs();
+  endAt = Date.now() + remaining;
+  timerId = setInterval(tick, 250);
+  setStatus(mode === 'focus' ? 'Locked in. Just the one thing.' : 'Stand up, stretch, look at something far away.');
+  render();
+}
+
+function pause() {
+  if (running()) remaining = Math.max(0, endAt - Date.now());
+  clearInterval(timerId);
+  timerId = null;
+  endAt = null;
+}
+
+function complete() {
+  clearInterval(timerId);
+  timerId = null;
+  endAt = null;
+  chime();
+  if (mode === 'focus') {
+    state.log.push({
+      id: Date.now(),
+      task: state.task.trim() || 'Untitled sprint',
+      min: state.focusMin,
+      at: Date.now(),
+    });
+    state.log = state.log.slice(-200);
+    save();
+    renderLog();
+    mode = 'break';
+    setStatus(`Sprint done. Take ${BREAK_MIN} minutes.`);
+  } else {
+    mode = 'focus';
+    setStatus('Break over. Ready when you are.');
+  }
+  remaining = totalMs();
+  render();
+}
+
+function setStatus(msg) { $('#status').textContent = msg; }
+
+function ensureAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {}
+}
+
+function chime() {
+  if (!audioCtx) return;
+  [660, 880, 1100].forEach((freq, i) => {
+    const t0 = audioCtx.currentTime + i * 0.18;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.65);
+  });
+}
+
+function renderTasks() {
+  const list = $('#taskList');
+  list.replaceChildren();
+  state.tasks.forEach((task) => {
+    const li = document.createElement('li');
+    li.className = 'item' + (task.done ? ' done' : '') + (task.text === state.task && !task.done ? ' current' : '');
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = task.done;
+    cb.setAttribute('aria-label', `Mark "${task.text}" done`);
+    cb.addEventListener('change', () => { task.done = cb.checked; save(); renderTasks(); });
+
+    const text = document.createElement('span');
+    text.className = 'text';
+    text.textContent = task.text;
+
+    const focus = document.createElement('button');
+    focus.type = 'button';
+    focus.className = 'mini';
+    focus.textContent = 'Focus';
+    focus.hidden = task.done;
+    focus.addEventListener('click', () => {
+      state.task = task.text;
+      $('#task').value = task.text;
+      save();
+      renderTasks();
+    });
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'mini';
+    del.textContent = '×';
+    del.setAttribute('aria-label', `Delete "${task.text}"`);
+    del.addEventListener('click', () => {
+      state.tasks = state.tasks.filter((x) => x !== task);
+      save();
+      renderTasks();
+    });
+
+    li.append(cb, text, focus, del);
+    list.append(li);
+  });
+  $('#taskEmpty').hidden = state.tasks.length > 0;
+}
+
+function todaysLog() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return state.log.filter((e) => e.at >= start.getTime());
+}
+
+function renderLog() {
+  const entries = todaysLog();
+  const list = $('#logList');
+  list.replaceChildren();
+  entries.slice().reverse().forEach((e) => {
+    const li = document.createElement('li');
+    li.className = 'entry';
+    const when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const what = document.createElement('span');
+    what.className = 'what';
+    what.textContent = e.task;
+    const mins = document.createElement('span');
+    mins.className = 'mins';
+    mins.textContent = `${e.min}m`;
+    li.append(when, what, mins);
+    list.append(li);
+  });
+  const total = entries.reduce((n, e) => n + e.min, 0);
+  $('#stats').textContent = entries.length
+    ? `${entries.length} sprint${entries.length === 1 ? '' : 's'} · ${total} min today`
+    : '';
+  $('#logEmpty').hidden = entries.length > 0;
+  $('#clearLog').hidden = state.log.length === 0;
+}
+
+$('#startBtn').addEventListener('click', () => { running() ? (pause(), render()) : start(); });
+$('#resetBtn').addEventListener('click', () => { pause(); remaining = totalMs(); setStatus(''); render(); });
+$('#skipBtn').addEventListener('click', () => { setMode(mode === 'focus' ? 'break' : 'focus'); setStatus(''); });
+
+document.querySelectorAll('.seg button').forEach((b) => {
+  b.addEventListener('click', () => {
+    state.focusMin = Number(b.dataset.min);
+    save();
+    if (mode === 'focus' && !running()) remaining = focusMs();
+    render();
+  });
+});
+
+$('#task').value = state.task;
+$('#task').addEventListener('input', (e) => { state.task = e.target.value; save(); renderTasks(); });
+
+$('#addForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = $('#newTask');
+  const text = input.value.trim();
+  if (!text) return;
+  state.tasks.push({ id: Date.now(), text, done: false });
+  input.value = '';
+  save();
+  renderTasks();
+});
+
+$('#clearLog').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  if (!clearArmed) {
+    btn.textContent = 'Sure?';
+    clearArmed = setTimeout(() => { btn.textContent = 'Clear log'; clearArmed = null; }, 3000);
+    return;
+  }
+  clearTimeout(clearArmed);
+  clearArmed = null;
+  btn.textContent = 'Clear log';
+  state.log = [];
+  save();
+  renderLog();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || e.repeat) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
+  e.preventDefault();
+  $('#startBtn').click();
+});
+
+$('#bar').style.strokeDasharray = CIRC;
+render();
+renderTasks();
+renderLog();
+</script>
+</body>
+</html>
